@@ -121,7 +121,43 @@ yearly_stats_summary = df.groupBy("signup_year") \
 yearly_stats_summary.show()
 
 #7
+import pyspark
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import year, count, sum, when
+import matplotlib.pyplot as plt
 
+spark = SparkSession.builder \
+    .appName("Yearly Statistics Summary") \
+    .getOrCreate()
+
+json_file_path = "yelp_academic_dataset_user.json"
+
+df = spark.read.json(json_file_path)
+
+df = df.withColumn("signup_year", year("yelping_since"))
+df = df.withColumn("elite_year", year("elite"))
+
+yearly_stats_summary = df.groupBy("signup_year") \
+    .agg(count("user_id").alias("new_users"),
+         sum("review_count").alias("total_review_count"),
+         sum(when(df["elite_year"] > 0, 1).otherwise(0)).alias("elite_users")) \
+    .orderBy("signup_year")
+
+yearly_stats_pd = yearly_stats_summary.toPandas()
+
+print("Yearly Statistics Summary:")
+print(yearly_stats_pd)
+
+plt.figure(figsize=(10, 5))
+plt.plot(yearly_stats_pd["signup_year"], yearly_stats_pd["new_users"], marker='o', label='New Users')
+plt.plot(yearly_stats_pd["signup_year"], yearly_stats_pd["total_review_count"], marker='o', label='Total Review Count')
+plt.plot(yearly_stats_pd["signup_year"], yearly_stats_pd["elite_users"], marker='o', label='Elite Users')
+plt.xlabel('Year')
+plt.ylabel('Count')
+plt.title('Yearly Statistics Summary')
+plt.legend()
+plt.grid(True)
+plt.show()
 
 
 
